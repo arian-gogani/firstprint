@@ -1,6 +1,10 @@
 # Firstprint
 
-**The birth certificate for everything AI creates.**
+> **The birth certificate for everything AI creates.**
+
+[![Tests](https://img.shields.io/badge/tests-55%2F55%20passing-brightgreen)]()
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue)]()
+[![License](https://img.shields.io/badge/license-MIT-green)]()
 
 Firstprint is a provenance protocol that gives every AI-generated artifact a structural identity, computes what's original about it, and enforces attribution when that originality is reproduced.
 
@@ -60,8 +64,22 @@ Firstprint outputs a **derivation likelihood score**, not a binary judgment.
 | Suspicious | 50-70% | Rare combinations align |
 | High-confidence clone | 70-100% | Statistically implausible independent creation |
 
+## Test Results
+
+55/55 tests passing across 8 categories:
+
+```
+Exact clone (renamed):     ██████████████████████████████ 100.0%  → HIGH_CONFIDENCE_CLONE
+Refactored clone:          ███████████████░░░░░░░░░░░░░░░  50.7%  → SUSPICIOUS
+Partial clone (~50%):      ██████████████░░░░░░░░░░░░░░░░  47.1%  → INFLUENCE
+Independent impl:          ███████████░░░░░░░░░░░░░░░░░░░  37.3%  → INFLUENCE
+Unrelated code:            █████████░░░░░░░░░░░░░░░░░░░░░  28.8%  → CONVENTION
+```
+
+Score ordering is monotonic. Exact > Refactored > Partial > Independent > Unrelated. ✅
+
 ## License
 
 MIT
 
-Built by [Arian Gogani](https://github.com/agbusiness195).
+Built by [Arian Gogani](https://github.com/arian-gogani).
