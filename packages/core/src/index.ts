@@ -15,6 +15,10 @@ export { fingerprint, fingerprintFile, serializeFingerprint } from './fingerprin
 export { fingerprintFunctions } from './function-fingerprint.js';
 export type { FunctionInfo, FunctionFingerprint, FileFunctionFingerprints } from './function-fingerprint.js';
 
+// Project-level fingerprinting
+export { fingerprintProject } from './project-fingerprint.js';
+export type { ProjectFingerprint, FileFingerprint, ProjectOptions } from './project-fingerprint.js';
+
 // Parser
 export { parseCode, detectLanguage } from './parser.js';
 export type { ParsedNode } from './parser.js';

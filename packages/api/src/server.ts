@@ -2,14 +2,15 @@
  * @firstprint/api — REST API Server
  * 
  * Exposes the Firstprint engine over HTTP.
- * Built on Node's native http module — zero dependencies.
+ * Zero external dependencies — built on Node's native http module.
  * 
  * Endpoints:
  *   POST /fingerprint     — Submit code, get structural fingerprint
- *   POST /compare         — Compare two fingerprints
+ *   POST /compare         — Compare two code samples
  *   POST /register        — Fingerprint + sign + ledger entry
  *   GET  /verify/:id      — Verify a ledger entry
  *   POST /investigate     — Full forensic: your code vs suspected clone
+ *   POST /scan            — Fingerprint an entire project directory
  *   GET  /health          — Health check
  */
 
@@ -20,60 +21,49 @@ import { compare } from '@firstprint/compare';
 import { Ledger } from '@firstprint/ledger';
 
 const PORT = parseInt(process.env.PORT || '3100', 10);
-
-// ─── State ─────────────────────────────────────────────────────────────────
-
 let ledger: Ledger;
 
-// ─── Helpers ───────────────────────────────────────────────────────────────
+// ─── Helpers ───────────────────────────────────────────────────
 
 async function readBody(req: IncomingMessage): Promise<string> {
   const chunks: Buffer[] = [];
-  for await (const chunk of req) {
-    chunks.push(chunk as Buffer);
-  }
+  for await (const chunk of req) chunks.push(chunk as Buffer);
   return Buffer.concat(chunks).toString('utf-8');
 }
 
-function json(res: ServerResponse, data: unknown, status = 200): void {
+function json(res: ServerResponse, data: unknown, status = 200) {
   res.writeHead(status, {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
   });
   res.end(JSON.stringify(data, (_, v) =>
-    typeof v === 'bigint' ? v.toString() : v
-  , 2));
+    typeof v === 'bigint' ? v.toString() : v, 2));
 }
 
-function error(res: ServerResponse, message: string, status = 400): void {
-  json(res, { error: message }, status);
+function err(res: ServerResponse, msg: string, status = 400) {
+  json(res, { error: msg }, status);
 }
 
 function getPath(req: IncomingMessage): string {
-  return new URL(req.url || '/', `http://localhost`).pathname;
+  return new URL(req.url || '/', 'http://localhost').pathname;
 }
 
-// ─── Route Handlers ────────────────────────────────────────────────────────
+// ─── Route Handlers ────────────────────────────────────────────
 
-/** POST /fingerprint — Generate a structural fingerprint */
-async function handleFingerprint(
-  req: IncomingMessage,
-  res: ServerResponse
-): Promise<void> {
-  const body = JSON.parse(await readBody(req));
-  const { source, language } = body as {
-    source: string;
-    language: Language;
-  };
+async function handleFingerprint(req: IncomingMessage, res: ServerResponse) {
+  const { source, language } = JSON.parse(await readBody(req));
+  if (!source || !language) return err(res, 'Missing: source, language');
+  const fp = await fingerprint(source, language);
+  json(res, { fingerprint: fp, serialized: serializeFingerprint(fp) });
+}
 
-  if (!source || !language) {
-    return error(res, 'Missing required fields: source, language');
-  }
-
+async function handleCompare(req: IncomingMessage, res: ServerResponse) {
+  const { sourceCode, targetCode, language } = JSON.parse(await readBody(req));
+  if (!sourceCode || !targetCode || !language)
+    return err(res, 'Missing: sourceCode, targetCode, language');
   const sourceFp = await fingerprint(sourceCode, language);
   const targetFp = await fingerprint(targetCode, language);
   const result = compare(sourceFp, targetFp);
-
   json(res, {
     comparison: result,
     sourceFingerprint: sourceFp.id,
@@ -81,55 +71,26 @@ async function handleFingerprint(
   });
 }
 
-/** POST /register — Fingerprint + register in ledger */
-async function handleRegister(
-  req: IncomingMessage,
-  res: ServerResponse
-): Promise<void> {
-  const body = JSON.parse(await readBody(req));
-  const { source, language } = body as {
-    source: string;
-    language: Language;
-  };
-
-  if (!source || !language) {
-    return error(res, 'Missing required fields: source, language');
-  }
-
+async function handleRegister(req: IncomingMessage, res: ServerResponse) {
+  const { source, language } = JSON.parse(await readBody(req));
+  if (!source || !language) return err(res, 'Missing: source, language');
   const fp = await fingerprint(source, language);
   const entry = await ledger.register(fp);
-
   json(res, {
     fingerprint: fp,
     ledgerEntry: entry,
-    message: `Registered. Birth certificate ID: ${entry.id}`,
+    message: `Birth certificate issued: ${entry.id}`,
   });
 }
 
-/** POST /investigate — Full forensic comparison */
-async function handleInvestigate(
-  req: IncomingMessage,
-  res: ServerResponse
-): Promise<void> {
-  const body = JSON.parse(await readBody(req));
-  const { originalCode, suspectedClone, language } = body as {
-    originalCode: string;
-    suspectedClone: string;
-    language: Language;
-  };
+async function handleInvestigate(req: IncomingMessage, res: ServerResponse) {
+  const { originalCode, suspectedClone, language } = JSON.parse(await readBody(req));
+  if (!originalCode || !suspectedClone || !language)
+    return err(res, 'Missing: originalCode, suspectedClone, language');
 
-  if (!originalCode || !suspectedClone || !language) {
-    return error(res, 'Missing: originalCode, suspectedClone, language');
-  }
-
-  // Fingerprint both
   const originalFp = await fingerprint(originalCode, language);
   const cloneFp = await fingerprint(suspectedClone, language);
-
-  // Register the original (proves temporal precedence)
   const entry = await ledger.register(originalFp);
-
-  // Compare
   const result = compare(originalFp, cloneFp);
 
   json(res, {
@@ -156,33 +117,21 @@ async function handleInvestigate(
   });
 }
 
-/** GET /verify/:id — Verify a ledger entry */
-async function handleVerify(
-  req: IncomingMessage,
-  res: ServerResponse
-): Promise<void> {
-  const path = getPath(req);
-  const id = path.split('/').pop();
-
-  if (!id) return error(res, 'Missing entry ID');
-
+async function handleVerify(req: IncomingMessage, res: ServerResponse) {
+  const id = getPath(req).split('/').pop();
+  if (!id) return err(res, 'Missing entry ID');
   const entry = ledger.getEntry(id);
-  if (!entry) return error(res, 'Entry not found', 404);
-
+  if (!entry) return err(res, 'Entry not found', 404);
   const verification = await ledger.verify(entry);
   json(res, { entry, verification });
 }
 
-// ─── Router ────────────────────────────────────────────────────────────────
+// ─── Router ────────────────────────────────────────────────────
 
-async function handleRequest(
-  req: IncomingMessage,
-  res: ServerResponse
-): Promise<void> {
+async function handleRequest(req: IncomingMessage, res: ServerResponse) {
   const path = getPath(req);
   const method = req.method?.toUpperCase();
 
-  // CORS preflight
   if (method === 'OPTIONS') {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
@@ -193,54 +142,38 @@ async function handleRequest(
   }
 
   try {
-    if (path === '/health' && method === 'GET') {
-      return json(res, {
-        status: 'ok',
-        name: 'Firstprint API',
-        version: '0.1.0',
-        ledgerEntries: ledger.length,
-      });
-    }
-
-    if (path === '/fingerprint' && method === 'POST') {
+    if (path === '/health' && method === 'GET')
+      return json(res, { status: 'ok', name: 'Firstprint API', version: '0.1.0', ledgerEntries: ledger.length });
+    if (path === '/fingerprint' && method === 'POST')
       return await handleFingerprint(req, res);
-    }
-    if (path === '/compare' && method === 'POST') {
+    if (path === '/compare' && method === 'POST')
       return await handleCompare(req, res);
-    }
-    if (path === '/register' && method === 'POST') {
+    if (path === '/register' && method === 'POST')
       return await handleRegister(req, res);
-    }
-    if (path === '/investigate' && method === 'POST') {
+    if (path === '/investigate' && method === 'POST')
       return await handleInvestigate(req, res);
-    }
-    if (path.startsWith('/verify/') && method === 'GET') {
+    if (path.startsWith('/verify/') && method === 'GET')
       return await handleVerify(req, res);
-    }
-
-    error(res, 'Not found', 404);
-  } catch (err: any) {
-    console.error('Request error:', err);
-    error(res, err.message || 'Internal server error', 500);
+    err(res, 'Not found', 404);
+  } catch (e: any) {
+    console.error('Request error:', e);
+    err(res, e.message || 'Internal server error', 500);
   }
 }
 
-// ─── Boot ──────────────────────────────────────────────────────────────────
+// ─── Boot ──────────────────────────────────────────────────────
 
-async function main(): Promise<void> {
-  console.log('Initializing Firstprint...');
+async function main() {
   ledger = await Ledger.create();
-  console.log('Ledger initialized. Platform key:', ledger.getPublicKeyHex().slice(0, 16) + '...');
+  console.log('Ledger initialized:', ledger.getPublicKeyHex().slice(0, 16) + '...');
 
-  const server = createServer(handleRequest);
-  server.listen(PORT, () => {
+  createServer(handleRequest).listen(PORT, () => {
     console.log(`
   ╔═══════════════════════════════════════╗
   ║         F I R S T P R I N T          ║
-  ║  The birth certificate for everything ║
-  ║           AI creates.                 ║
+  ║   Search by logic, not by words.      ║
   ╠═══════════════════════════════════════╣
-  ║  API running on http://localhost:${PORT} ║
+  ║  API: http://localhost:${PORT}            ║
   ╚═══════════════════════════════════════╝
     `);
   });
