@@ -149,9 +149,9 @@ Monotonic ordering validated. The system works.
 Graded by two independent AIs (Claude + ChatGPT), idea-only, no
 hindsight, same early stage as all comparisons:
 
-- **Percentile:** 99.96th
+- **Percentile:** 99.97th–99.98th
 - **Grade:** A+
-- **Placement:** #4 overall
+- **Placement:** #3–#4 overall, arguable with Airbnb
 
 1. Ethereum
 2. Stripe
