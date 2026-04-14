@@ -1,0 +1,19 @@
+{
+  "name": "firstprint",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The birth certificate for everything AI creates.",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "dev": "npm run dev --workspace=packages/api"
+  },
+  "author": "Arian Gogani",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

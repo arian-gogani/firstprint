@@ -1,0 +1,22 @@
+{
+  "name": "@firstprint/core",
+  "version": "0.1.0",
+  "description": "Structural fingerprinting engine for code artifacts",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test dist/**/*.test.js",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "tree-sitter": "^0.22.4",
+    "tree-sitter-typescript": "^0.23.2",
+    "tree-sitter-python": "^0.23.6"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0"
+  }
+}

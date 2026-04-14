@@ -1,0 +1,10 @@
+{
+  "name": "@firstprint/web",
+  "version": "0.1.0",
+  "description": "Firstprint public verification UI",
+  "type": "module",
+  "scripts": {
+    "dev": "npx serve src",
+    "build": "echo 'Static site — no build needed'"
+  }
+}

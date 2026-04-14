@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Firstprint — The birth certificate for everything AI creates</title>
+  <style>
+    :root {
+      --bg: #0a0a12;
+      --surface: #12121e;
+      --border: #1e1e2e;
+      --text: #e0e0ec;
+      --text-muted: #8888a0;
+      --accent: #4a7dff;
+      --accent-dim: #2a4d9f;
+      --green: #34d399;
+      --red: #f87171;
+      --yellow: #fbbf24;
+      --orange: #fb923c;
+      --font: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+      --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+    }
+    .container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+    
+    /* Header */
+    .header {
+      text-align: center;
+      padding: 3rem 0 2rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 2rem;
+    }
+    .logo {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #fff 0%, #7aa2ff 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .tagline {
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+      font-size: 0.95rem;
+    }
+
+    /* Editor panels */
+    .panels {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .panel-header {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    textarea {
+      width: 100%;
+      min-height: 280px;
+      background: var(--bg);
+      color: var(--text);
+      border: none;
+      padding: 1rem;
+      font-family: var(--font);
+      font-size: 0.85rem;
+      line-height: 1.6;
+      resize: vertical;
+      outline: none;
+    }
+    textarea::placeholder { color: var(--text-muted); opacity: 0.5; }
+
+    /* Button */
+    .actions { text-align: center; margin-bottom: 2rem; }
+    .btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 0.8rem 2.5rem;
+      font-size: 1rem;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn:hover { background: #5a8dff; transform: translateY(-1px); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      margin-left: 0.75rem;
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--text); }
+
+    /* Results */
+    .results {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 2rem;
+      display: none;
+    }
+    .results.visible { display: block; }
+    .score-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+    }
+    .score-big {
+      font-size: 3rem;
+      font-weight: 700;
+      font-family: var(--font);
+    }
+    .band-label {
+      padding: 0.3rem 0.8rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .band-convention { background: #1a3a1a; color: var(--green); }
+    .band-influence { background: #3a3a1a; color: var(--yellow); }
+    .band-suspicious { background: #3a2a1a; color: var(--orange); }
+    .band-high_confidence_clone { background: #3a1a1a; color: var(--red); }
+
+    /* Layer bars */
+    .layers { margin: 1.5rem 0; }
+    .layer-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 0.6rem;
+      font-size: 0.85rem;
+    }
+    .layer-name {
+      width: 120px;
+      color: var(--text-muted);
+      font-family: var(--font);
+      font-size: 0.8rem;
+    }
+    .layer-bar-bg {
+      flex: 1;
+      height: 8px;
+      background: var(--bg);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .layer-bar {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.5s ease;
+    }
+    .layer-pct {
+      width: 50px;
+      text-align: right;
+      font-family: var(--font);
+      font-size: 0.8rem;
+    }
+
+    /* Evidence */
+    .evidence { margin-top: 1.5rem; }
+    .evidence-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .evidence-item {
+      padding: 0.5rem 0.75rem;
+      background: var(--bg);
+      border-radius: 4px;
+      margin-bottom: 0.4rem;
+      font-family: var(--font);
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      border-left: 3px solid var(--accent-dim);
+    }
+    .summary {
+      margin-top: 1.5rem;
+      padding: 1rem;
+      background: var(--bg);
+      border-radius: 6px;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      color: var(--text-muted);
+    }
+    .loading {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">firstprint</div>
+      <div class="tagline">The birth certificate for everything AI creates.</div>
+    </div>
+
+    <div class="panels">
+      <div class="panel">
+        <div class="panel-header">Original Code</div>
+        <textarea id="source" placeholder="Paste your original code here..."></textarea>
+      </div>
+      <div class="panel">
+        <div class="panel-header">Suspected Clone</div>
+        <textarea id="target" placeholder="Paste the suspected clone here..."></textarea>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn" id="compareBtn" onclick="runComparison()">Investigate</button>
+      <button class="btn btn-secondary" onclick="loadExample()">Load Example</button>
+    </div>
+
+    <div class="results" id="results">
+      <div id="resultsContent"></div>
+    </div>
+  </div>
+
+  <script>
+    const API = 'http://localhost:3100';
+
+    async function runComparison() {
+      const source = document.getElementById('source').value;
+      const target = document.getElementById('target').value;
+      const btn = document.getElementById('compareBtn');
+      const results = document.getElementById('results');
+      const content = document.getElementById('resultsContent');
+
+      if (!source.trim() || !target.trim()) {
+        alert('Paste code in both panels.');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Analyzing...';
+      results.classList.add('visible');
+      content.innerHTML = '<div class="loading">Fingerprinting and comparing structural patterns...</div>';
+
+      try {
+        const res = await fetch(API + '/investigate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            originalCode: source,
+            suspectedClone: target,
+            language: 'typescript',
+          }),
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        renderResults(data.investigation);
+      } catch (err) {
+        content.innerHTML = `<div class="loading">Error: ${err.message}<br><br>Make sure the API is running: <code>npm run dev</code></div>`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Investigate';
+      }
+    }
+
+    function renderResults(inv) {
+      const r = inv.result;
+      const score = (r.derivationScore * 100).toFixed(1);
+      const bandClass = 'band-' + r.band;
+      const bandLabel = r.band.replace(/_/g, ' ');
+
+      let layersHTML = '';
+      for (const layer of r.layerScores) {
+        const pct = (layer.rawSimilarity * 100).toFixed(1);
+        const color = layer.rawSimilarity > 0.7 ? 'var(--red)' :
+                      layer.rawSimilarity > 0.5 ? 'var(--orange)' :
+                      layer.rawSimilarity > 0.3 ? 'var(--yellow)' :
+                      'var(--green)';
+        layersHTML += `
+          <div class="layer-row">
+            <span class="layer-name">${layer.layer}</span>
+            <div class="layer-bar-bg">
+              <div class="layer-bar" style="width:${pct}%;background:${color}"></div>
+            </div>
+            <span class="layer-pct">${pct}%</span>
+          </div>`;
+      }
+
+      let evidenceHTML = '';
+      if (r.evidence && r.evidence.length > 0) {
+        evidenceHTML = `
+          <div class="evidence">
+            <div class="evidence-title">Top Evidence</div>
+            ${r.evidence.map(e =>
+              `<div class="evidence-item">${e.description}</div>`
+            ).join('')}
+          </div>`;
+      }
+
+      const content = document.getElementById('resultsContent');
+      content.innerHTML = `
+        <div class="score-header">
+          <div>
+            <div class="score-big" style="color:${
+              r.derivationScore > 0.7 ? 'var(--red)' :
+              r.derivationScore > 0.5 ? 'var(--orange)' :
+              r.derivationScore > 0.3 ? 'var(--yellow)' :
+              'var(--green)'
+            }">${score}%</div>
+            <div style="color:var(--text-muted);font-size:0.85rem;margin-top:0.25rem">
+              Derivation Score
+            </div>
+          </div>
+          <div>
+            <span class="band-label ${bandClass}">${bandLabel}</span>
+            <div style="color:var(--text-muted);font-size:0.8rem;margin-top:0.5rem">
+              Confidence: ${(r.confidence * 100).toFixed(1)}%
+            </div>
+          </div>
+        </div>
+        <div class="layers">${layersHTML}</div>
+        ${evidenceHTML}
+        <div class="summary">${r.summary}</div>
+        <div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border);font-size:0.78rem;color:var(--text-muted)">
+          Original: ${inv.original.featureCount} features · Registered at ${inv.original.registeredAt} · Ledger ID: ${inv.original.ledgerEntryId.slice(0,8)}…
+        </div>
+      `;
+    }
+
+    function loadExample() {
+      document.getElementById('source').value = `import { createHash } from 'crypto';
+
+interface User {
+  id: string;
+  email: string;
+  role: 'admin' | 'editor' | 'viewer';
+}
+
+async function validateUser(user: User): Promise<boolean> {
+  if (!user.id) throw new Error('Missing ID');
+  if (!user.email) throw new Error('Missing email');
+
+  const token = createHash('sha256').update(user.id).digest('hex');
+
+  if (user.role === 'admin') {
+    const check = await verifyAdmin(user);
+    if (!check) throw new Error('Admin check failed');
+  }
+
+  if (user.role !== 'viewer') {
+    const perms = await checkPerms(user);
+    if (!perms) return false;
+  }
+
+  await logAccess(user, token);
+  return true;
+}
+
+async function verifyAdmin(user: User): Promise<boolean> {
+  try {
+    const res = await fetch('/api/admin/' + user.id);
+    return res.ok && (await res.json()).verified;
+  } catch { return false; }
+}
+
+async function checkPerms(user: User): Promise<boolean> {
+  try {
+    const res = await fetch('/api/perms/' + user.id);
+    return res.ok && (await res.json()).allowed;
+  } catch { return false; }
+}
+
+async function logAccess(user: User, token: string): Promise<void> {
+  console.log('Access:', user.id, token.slice(0, 8));
+}`;
+
+      document.getElementById('target').value = `import { createHash } from 'crypto';
+
+interface Account {
+  id: string;
+  contactEmail: string;
+  permission: 'superuser' | 'writer' | 'reader';
+}
+
+async function authenticateAccount(acct: Account): Promise<boolean> {
+  if (!acct.id) throw new Error('Missing ID');
+  if (!acct.contactEmail) throw new Error('Missing email');
+
+  const digest = createHash('sha256').update(acct.id).digest('hex');
+
+  if (acct.permission === 'superuser') {
+    const ok = await verifySuperAccess(acct);
+    if (!ok) throw new Error('Super check failed');
+  }
+
+  if (acct.permission !== 'reader') {
+    const access = await checkAccess(acct);
+    if (!access) return false;
+  }
+
+  await recordEntry(acct, digest);
+  return true;
+}
+
+async function verifySuperAccess(acct: Account): Promise<boolean> {
+  try {
+    const res = await fetch('/api/super/' + acct.id);
+    return res.ok && (await res.json()).verified;
+  } catch { return false; }
+}
+
+async function checkAccess(acct: Account): Promise<boolean> {
+  try {
+    const res = await fetch('/api/access/' + acct.id);
+    return res.ok && (await res.json()).allowed;
+  } catch { return false; }
+}
+
+async function recordEntry(acct: Account, digest: string): Promise<void> {
+  console.log('Entry:', acct.id, digest.slice(0, 8));
+}`;
+    }
+  </script>
+</body>
+</html>

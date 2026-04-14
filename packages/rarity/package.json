@@ -1,0 +1,20 @@
+{
+  "name": "@firstprint/rarity",
+  "version": "0.1.0",
+  "description": "Rarity corpus — frequency tables for structural patterns",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test dist/**/*.test.js",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@firstprint/core": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0"
+  }
+}
